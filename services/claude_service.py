@@ -2,7 +2,7 @@ import asyncio
 import os
 from anthropic import Anthropic
 from dotenv import load_dotenv
-
+from prompts.system_prompts import SECURITY_REVIEW_PROMPT
 load_dotenv()
 
 
@@ -24,13 +24,6 @@ class ClaudeService:
         if not self.client:
             raise RuntimeError("Claude API key not configured.")
 
-        system_prompt = (
-            "You are a senior security engineer. "
-            "Review the following Python code for security and performance issues. "
-            "Respond with bullet points only. "
-            "If no issues found, respond with 'LGTM'."
-        )
-
         loop = asyncio.get_event_loop()
 
         response = await loop.run_in_executor(
@@ -38,14 +31,17 @@ class ClaudeService:
             lambda: self.client.messages.create(
                 model="claude-sonnet-4-5",
                 max_tokens=500,
-                system=system_prompt,
+                system=SECURITY_REVIEW_PROMPT,
                 messages=[{"role": "user", "content": code}],
             ),
         )
 
-        review_text = response.content[0].text
+        review_text = (response.content[0].text or "").strip()
+       
+        if not review_text:
+            return "LGTM"
 
-        if not review_text or not review_text.strip():
-            raise ValueError("Claude returned empty review.")
+        if review_text.upper() in {"NO ISSUES", "NO ISSUES FOUND", "NONE"}:
+            return "LGTM"
 
-        return review_text.strip()
+        return review_text

@@ -9,6 +9,7 @@ from mcp.server.stdio import stdio_server
 from services.gemini_service import GeminiService
 from services.claude_service import ClaudeService
 
+from utils.logger import logger
 
 server = Server("Hybrid-AI-Code-Architect")
 
@@ -55,8 +56,15 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[types.T
             review = await gemini_service.review_code_fallback(generated_code)
             reviewer_used = "gemini_fallback"
 
-        # STEP 3 — Self-Correction Loop
+        # STEP 3 — Self-Correction Loop and Wait 10s before correction loop to avoid rate limit
         if review != "LGTM":
+
+            # Log before correction
+            logger.info(f"STEP 2 — Issues found ({reviewer_used}):\n{review}")
+            logger.info(f"STEP 2 — Code before correction:\n{generated_code}")
+            logger.info("Waiting 10s before correction loop to avoid rate limits...")
+            await asyncio.sleep(10)
+
             refactor_prompt = (
                 f"Refactor the following Python code to fix these issues:\n\n"
                 f"Issues:\n{review}\n\n"

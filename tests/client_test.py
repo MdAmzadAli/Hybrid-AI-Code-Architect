@@ -5,7 +5,11 @@ from mcp.client.stdio import stdio_client, StdioServerParameters
 import json
 
 async def main():
-    params = StdioServerParameters(command=sys.executable, args=["server.py"])
+    params = StdioServerParameters(
+        command=sys.executable, 
+        args=["server.py"],
+        stderr=sys.stderr
+        )
 
     async with stdio_client(params) as (reader, writer):
         async with ClientSession(reader, writer) as session:
@@ -14,7 +18,7 @@ async def main():
             try:
                 result = await session.call_tool(
                     "generate_and_review",
-                    {"prompt": "Write a function to add 2 numbers."},
+                    {"prompt": "Write a function to add 3 numbers"},
                 )
                 raw_text = result.content[0].text
 

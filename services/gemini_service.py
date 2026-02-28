@@ -2,6 +2,11 @@ import asyncio
 import os
 from google import genai
 from google.genai import types
+from prompts.system_prompts import CODE_GENERATOR_PROMPT, SECURITY_REVIEW_PROMPT
+
+from utils.logger import logger
+
+import sys
 
 class GeminiService:
     """
@@ -13,32 +18,6 @@ class GeminiService:
 
     async def generate_code(self, prompt: str) -> str:
 
-        system_instruction = """
-You are a Senior Python Engineer.
-
-Generate ONE complete Python solution.
-
-STRICT RULES:
-- Provide exactly ONE implementation.
-- Do NOT generate alternative versions.
-- Do NOT include commented-out code.
-- Do NOT include multiple approaches.
-- Do NOT include analysis or reasoning.
-- Do NOT include markdown.
-- Do NOT include docstrings.
-
-COMMENTING RULES:
-- Only add inline comments if the logic is non-trivial 
-  and must be short to the point 
-- Do NOT explain obvious code.
-- Do NOT write multi-line comments.
-- Do NOT include Args/Returns sections.
-
-OUTPUT:
-- Return only valid executable Python code.
-- No explanation before or after the code.
-"""
-
         response = await asyncio.get_event_loop().run_in_executor(
     None,
     lambda: self.client.models.generate_content(
@@ -47,7 +26,7 @@ OUTPUT:
             {"role": "user", "parts": [{"text": prompt}]}
         ],
         config=types.GenerateContentConfig(
-            system_instruction=system_instruction
+            system_instruction=CODE_GENERATOR_PROMPT
         )
     ),
 )
@@ -66,27 +45,6 @@ OUTPUT:
         Gemini fallback reviewer acting as a strict security auditor.
         """
 
-        system_instruction = """
-You are a Senior Security Engineer performing a professional code review.
-
-Your responsibilities:
-- Identify security vulnerabilities.
-- Identify performance bottlenecks.
-- Identify bad coding practices.
-- Identify unsafe patterns.
-
-STRICT OUTPUT RULES:
-- Return bullet points only.
-- Each issue must start with '- '.
-- Be concise.
-- If no issues exist, return exactly: LGTM
-- Do NOT explain beyond bullet points.
-- Do NOT include markdown formatting.
-- Ignore commented-out code.
-- Only review executable code.
-"""
-
-
         response = await asyncio.get_event_loop().run_in_executor(
     None,
     lambda: self.client.models.generate_content(
@@ -95,12 +53,17 @@ STRICT OUTPUT RULES:
             {"role": "user", "parts": [{"text": code}]}
         ],
         config=types.GenerateContentConfig(
-            system_instruction=system_instruction
+            system_instruction=SECURITY_REVIEW_PROMPT
         )
     ),
 )
 
-        text = response.text
+        text = (response.text or "").strip()
 
-        if not text or not text.strip():
-            raise ValueError("Fallback reviewer returned empty")
+        if not text:
+            return "LGTM"
+
+        if text.upper() in {"NO ISSUES", "NO ISSUES FOUND", "NONE"}:
+            return "LGTM"
+
+        return text

@@ -40,6 +40,23 @@ Return Structured JSON Response
 
 ---
 
+## 🧠 Prompt Abstraction Layer
+
+All system prompts are centralized inside:
+
+prompts/system_prompts.py
+
+This ensures:
+
+- Consistent behavior across Gemini and Claude
+- Single source of truth for role definitions
+- Easy modification and experimentation
+- Cleaner separation of concerns
+
+Both code generation and security review prompts are shared across models.
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -51,10 +68,20 @@ hybrid-ai-code-architect/
 │   ├── gemini_service.py
 │   └── claude_service.py
 │
+├── prompts/
+│   └── system_prompts.py
+│
+├── utils/
+│   └── logger.py
+│
+├── logs/
+│   └── server_debug.log      ← auto-created at runtime
+│
 ├── tests/
 │   └── client_test.py
 │
 ├── .env
+├── .gitignore
 ├── requirements.txt
 └── README.md
 ```
@@ -161,7 +188,40 @@ If the reviewer identifies issues:
 3. The refactored code is reviewed again
 4. The final result is returned
 
-> Only one correction cycle is performed to prevent infinite loops.
+> Only one correction cycle is performed to prevent infinite loops.  
+> A 10-second delay is applied before the correction loop to avoid AI rate limits.
+
+---
+
+## 📋 Logging
+
+All server activity is logged via `utils/logger.py`.
+
+- Logs are written to both **stderr** and **`logs/server_debug.log`**
+- The `logs/` directory and `server_debug.log` file are **created automatically** at startup if they do not exist — no manual setup required
+- Third-party library logs (`httpx`, `google_genai`, `mcp`, `anthropic`) are suppressed to keep logs clean
+- Correction loop activity is logged in detail: issues found, code before correction, corrected code, and final review result
+
+**To monitor logs in real time:**
+
+```bash
+# Mac/Linux
+tail -f logs/server_debug.log
+
+# Windows
+Get-Content logs/server_debug.log -Wait
+```
+
+**Sample log output when correction loop triggers:**
+```
+2026-02-28 20:53:17 [INFO] [Hybrid-AI-Code-Architect] STEP 2 — Issues found (claude):
+- Potential stack overflow due to deep recursion
+2026-02-28 20:53:17 [INFO] [Hybrid-AI-Code-Architect] STEP 2 — Code before correction:
+def factorial(n): ...
+
+```
+
+> Logs are only written when the self-correction loop is triggered. Clean code (LGTM) produces no log entries.
 
 ---
 
@@ -186,7 +246,6 @@ The system handles:
 
 ---
 
-
 ## ⚙ Technologies Used
 
 - Python 3.10+
@@ -203,6 +262,6 @@ The system handles:
 
 | | |
 |---|---|
-| Start Date | 28 February 2026 – 14:00 |
-| Completion Date | 28 February 2026 – 19:00 |
-| Total Time Taken | 5 hours |
+| Start Date | 28 February 2026 – 15:00 |
+| Completion Date | 28 February 2026 – 22:00 |
+| Total Time Taken | 7 hours |
